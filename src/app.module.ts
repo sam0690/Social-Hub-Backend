@@ -5,7 +5,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { CacheModule } from './infrastructure/cache/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
-import { authConfig } from './config';
+import { appConfig, authConfig, databaseConfig, redisConfig } from './config';
 import { validateEnv } from './config/env';
 
 @Module({
@@ -14,7 +14,7 @@ import { validateEnv } from './config/env';
       isGlobal: true,
       envFilePath: '.env',
       validate: validateEnv,
-      load: [authConfig],
+      load: [appConfig, databaseConfig, redisConfig, authConfig],
     }),
     DatabaseModule,
     CacheModule,
