@@ -6,12 +6,14 @@ import { DatabaseModule } from './database/database.module';
 import { CacheModule } from './infrastructure/cache/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { authConfig } from './config';
+import { validateEnv } from './config/env';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate: validateEnv,
       load: [authConfig],
     }),
     DatabaseModule,

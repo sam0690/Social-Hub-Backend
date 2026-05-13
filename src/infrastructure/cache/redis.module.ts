@@ -8,7 +8,7 @@ import { RedisModule } from '@nestjs-modules/ioredis';
     RedisModule.forRootAsync({
       useFactory: (config: ConfigService) => ({
         type: 'single',
-        url: `redis://${config.get('REDIS_HOST')}:${config.get('REDIS_PORT')}`,
+        url: `redis://${config.get<string>('REDIS_HOST') ?? 'localhost'}:${config.get<string>('REDIS_PORT') ?? '6379'}`,
       }),
       inject: [ConfigService],
     }),

@@ -1,8 +1,9 @@
 import { registerAs } from '@nestjs/config';
+import { getOptionalEnv, getRequiredEnv } from './env';
 
 export default registerAs('auth', () => ({
-  jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
-  jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+  jwtAccessSecret: getRequiredEnv('JWT_ACCESS_SECRET'),
+  jwtRefreshSecret: getRequiredEnv('JWT_REFRESH_SECRET'),
+  jwtAccessExpiresIn: getOptionalEnv('JWT_ACCESS_EXPIRES_IN', '15m'),
+  jwtRefreshExpiresIn: getOptionalEnv('JWT_REFRESH_EXPIRES_IN', '30d'),
 }));
