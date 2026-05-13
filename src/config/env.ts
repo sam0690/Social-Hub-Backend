@@ -40,7 +40,6 @@ export function validateEnv(config: Record<string, unknown>) {
     REDIS_HOST: readEnvValue(config.REDIS_HOST) ?? 'localhost',
     REDIS_PORT: readEnvValue(config.REDIS_PORT) ?? '6379',
     JWT_ACCESS_EXPIRES_IN: readEnvValue(config.JWT_ACCESS_EXPIRES_IN) ?? '15m',
-    JWT_REFRESH_EXPIRES_IN:
-      readEnvValue(config.JWT_REFRESH_EXPIRES_IN) ?? '30d',
+    JWT_REFRESH_EXPIRES_IN: readEnvValue(config.JWT_REFRESH_EXPIRES_IN) ?? '7d',
   };
 }
