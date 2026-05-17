@@ -10,6 +10,7 @@ import { CreatePostDto } from '../dto/create-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
 import { GetPostsDto } from '../dto/get-posts.dto';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 
 @Injectable()
 export class PostsService {
@@ -17,6 +18,7 @@ export class PostsService {
     private postsRepository: PostsRepository,
     private usersRepository: UsersRepository,
     private feedService: FeedService,
+    private notificationsService: NotificationsService,
   ) { }
 
   // ── Helpers ────────────────────────────────────────────
@@ -70,6 +72,13 @@ export class PostsService {
       }
     }
 
+    for (const username of mentionedUsernames) {
+      const mentionedUser = await this.usersRepository.findByUsername(username);
+      if (mentionedUser) {
+        await this.postsRepository.createMention(post.id, mentionedUser.id);
+        await this.notificationsService.notifyMention(userId, mentionedUser.id, post.id);
+      }
+    }
     // fan-out post to followers' inboxes
     await this.feedService.fanOutPost(post.id, userId);
 
@@ -168,6 +177,7 @@ export class PostsService {
     if (!post) throw new NotFoundException('Post not found');
 
     await this.postsRepository.likePost(userId, postId);
+    await this.notificationsService.notifyLikePost(userId, post.authorId, postId);
     return { message: 'Post liked' };
   }
 
@@ -176,6 +186,7 @@ export class PostsService {
     if (!post) throw new NotFoundException('Post not found');
 
     await this.postsRepository.unlikePost(userId, postId);
+    await this.notificationsService.notifyUnlikePost(userId, postId);
     return { message: 'Post unliked' };
   }
 
@@ -184,6 +195,7 @@ export class PostsService {
     if (!comment) throw new NotFoundException('Comment not found');
 
     await this.postsRepository.likeComment(userId, commentId);
+    await this.notificationsService.notifyLikeComment(userId, comment.authorId, commentId);
     return { message: 'Comment liked' };
   }
 
@@ -192,6 +204,7 @@ export class PostsService {
     if (!comment) throw new NotFoundException('Comment not found');
 
     await this.postsRepository.unlikeComment(userId, commentId);
+    await this.notificationsService.notifyUnlikeComment(userId, commentId);
     return { message: 'Comment unliked' };
   }
 
@@ -205,6 +218,9 @@ export class PostsService {
         dto.parentCommentId,
       );
       if (!parent) throw new NotFoundException('Parent comment not found');
+      await this.notificationsService.notifyReply(userId, parent.authorId, dto.parentCommentId);
+    } else {
+      await this.notificationsService.notifyComment(userId, post.authorId, postId);
     }
 
     return this.postsRepository.createComment({

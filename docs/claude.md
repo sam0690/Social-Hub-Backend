@@ -1,291 +1,334 @@
-# Social Hub Backend Architecture Context
+# Social Hub Backend Architecture & Current Implementation
 
 ## Project Overview
 
-I am building a production-grade social media backend called **Social Hub** using:
-
-- NestJS
-- TypeScript
-- PostgreSQL
-- Redis
-- Drizzle ORM
-- JWT Authentication
-- Docker
+I am building a **NestJS + TypeScript + Drizzle ORM** social media backend called **Social Hub**.
 
 ---
 
-# Current Infrastructure
-
-## Backend Stack
+# Infrastructure
 
 - NestJS project with TypeScript
+- `moduleResolution: nodenext`
+- All imports use `.ts` extensions
 - PostgreSQL running on port `5433` via Docker
 - Redis running on port `6380` via Docker
-
----
-
-# Database Layer
-
-## Drizzle ORM Configuration
-
-Drizzle ORM is configured with a global `DRIZZLE` token injected via `DatabaseModule`.
-
-### Important Details
-
-- `DatabaseModule` is marked with `@Global()`
-- Reads `DATABASE_URL` directly from environment variables using:
-
-```ts
-config.getOrThrow('DATABASE_URL')
-```
-
----
-
-# Redis Layer
-
-## Cache Module
-
-Redis is configured via `CacheModule`.
-
-### Important Details
-
-- `CacheModule` is marked with `@Global()`
-- Reads:
-  - `REDIS_HOST`
-  - `REDIS_PORT`
-
-directly from environment variables.
-
----
-
-# Config System
-
-## Global Config Module
-
-Config module is loaded globally with:
-
-- `appConfig`
-- `databaseConfig`
-- `redisConfig`
-- `authConfig`
-
----
-
-# Environment Validation
-
-## Custom Environment Validation
-
-Custom `validateEnv` function exists in:
-
-```txt
-src/config/env.ts
-```
-
-It validates all required environment variables on startup.
-
-### Helper Functions
-
-Also available:
-
-- `getRequiredEnv`
-- `getOptionalEnv`
-
-Location:
-
-```txt
-src/config/env.ts
-```
-
----
-
-# Environment Variables
-
-## .env
-
-```env
-NODE_ENV=development
-PORT=3000
-
-DATABASE_URL="postgresql://postgres:postgres@localhost:5433/socialhub_dev"
-
-REDIS_HOST=localhost
-REDIS_PORT=6380
-
-JWT_ACCESS_SECRET=...
-JWT_REFRESH_SECRET=...
-
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=30d
-```
+- Drizzle ORM configured with global `DRIZZLE` token via `DatabaseModule` using `@Global()`
+- Redis configured via `CacheModule` using `@nestjs-modules/ioredis`
+- Redis injected using `@InjectRedis()`
+- Global config loaded:
+  - `appConfig`
+  - `databaseConfig`
+  - `redisConfig`
+  - `authConfig`
+- Custom environment validation in:
+  - `src/config/env.ts`
+- Environment helpers:
+  - `getRequiredEnv`
+  - `getOptionalEnv`
 
 ---
 
 # Swagger Configuration
 
-Swagger is installed and configured in `main.ts`.
+Configured in `main.ts` with:
 
-## Features
-
-- Uses `addBearerAuth`
-- Bearer auth name:
-
-```txt
-access-token
-```
-
+- `addBearerAuth`
+- Bearer name: `access-token`
 - `persistAuthorization: true`
-  - Keeps token after page refresh
 
----
-
-# Swagger Decorator System
-
-## Global Swagger Decorators
-
-Location:
+Global Swagger decorators in:
 
 ```txt
 src/common/decorators/swagger.decorators.ts
 ```
 
-Exports:
+## Available Decorators
 
-### ApiAuthEndpoint(summary, responses?)
+### `ApiAuthEndpoint(summary, responses?)`
 
-Used for JWT protected routes.
+- Protected routes
+- Includes `@ApiBearerAuth`
 
-Includes:
+### `ApiPublicEndpoint(summary, responses?)`
 
-```ts
-@ApiBearerAuth()
+- Public routes
+
+---
+
+# Swagger Conventions
+
+- Always use `@ApiTags('ModuleName')` on controller classes
+- Always use `@ApiProperty({ example: '...' })` on DTO fields
+- Never use raw:
+  - `@ApiOperation`
+  - `@ApiBearerAuth`
+  - `@ApiResponse`
+
+inside controllers
+
+---
+
+# Database Schema (Drizzle ORM)
+
+```txt
+src/database/schema/
+├── auth/
+│   ├── users.ts
+│   ├── sessions.ts
+│   ├── email-verifications.ts
+│   └── password-resets.ts
+│
+├── social/
+│   ├── follows.ts
+│   ├── blocked-users.ts
+│   ├── muted-users.ts
+│   └── feed-items.ts
+│
+├── posts/
+│   ├── posts.ts
+│   ├── comments.ts
+│   ├── likes.ts
+│   ├── bookmarks.ts
+│   ├── hashtags.ts
+│   └── mentions.ts
+│
+├── messaging/
+├── notifications/
+├── media/
+├── moderation/
+│
+├── relations.ts
+└── index.ts
 ```
 
-internally.
-
 ---
 
-### ApiPublicEndpoint(summary, responses?)
+# Auth Schema
 
-Used for public routes.
-
----
-
-## Supported Response Status Codes
-
-Both decorators support optional response descriptions for:
-
-- `200`
-- `201`
-- `400`
-- `403`
-- `404`
-- `409`
-
----
-
-# Swagger Rules
-
-## Always Follow These Rules
-
-### Controllers
-
-Always add:
-
-```ts
-@ApiTags('ModuleName')
-```
-
-on controller classes.
-
----
-
-### DTOs
-
-Always add:
-
-```ts
-@ApiProperty({ example: '...' })
-```
-
-on all DTO fields.
-
----
-
-### Never Import Raw Swagger Decorators
-
-Never import directly:
-
-- `@ApiOperation`
-- `@ApiBearerAuth`
-- `@ApiResponse`
-
-Use only the custom swagger decorators.
-
----
-
-# Database Schema (Drizzle)
-
-## users Table
+## `users.ts`
 
 Fields:
 
-- id
-- username
-- email
-- passwordHash
-- displayName
-- bio
-- avatarUrl
-- bannerUrl
-- isVerified
-- isPrivate
-- role (`USER | MODERATOR | ADMIN`)
-- status (`ACTIVE | BANNED | SUSPENDED`)
-- lastSeenAt
-- createdAt
-- updatedAt
-- deletedAt
+- `id`
+- `username`
+- `email`
+- `passwordHash`
+- `displayName`
+- `bio`
+- `avatarUrl`
+- `bannerUrl`
+- `isVerified`
+- `isPrivate`
+- `role`
+  - `USER`
+  - `MODERATOR`
+  - `ADMIN`
+- `status`
+  - `ACTIVE`
+  - `BANNED`
+  - `SUSPENDED`
+- `lastSeenAt`
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
 
 ---
 
-## sessions Table
+## `sessions.ts`
 
-Stores hashed refresh tokens per user.
+Fields:
 
-Fields include:
-
-- ipAddress
-- userAgent
-- expiresAt
-- revokedAt
-
----
-
-## email_verifications Table
-
-Stores hashed email verification tokens.
-
-Fields include:
-
-- expiresAt
-- usedAt
+- `id`
+- `userId`
+- `refreshTokenHash`
+- `ipAddress`
+- `userAgent`
+- `expiresAt`
+- `revokedAt`
+- `createdAt`
 
 ---
 
-## password_resets Table
+## `email-verifications.ts`
 
-Stores hashed password reset tokens.
+Fields:
 
-Fields include:
-
-- expiresAt
-- usedAt
+- `id`
+- `userId`
+- `tokenHash`
+- `expiresAt`
+- `usedAt`
+- `createdAt`
 
 ---
 
-# Schema Exports
+## `password-resets.ts`
 
-All schemas are exported from:
+Fields:
+
+- `id`
+- `userId`
+- `tokenHash`
+- `expiresAt`
+- `usedAt`
+- `createdAt`
+
+---
+
+# Social Schema
+
+## `follows.ts`
+
+- `followerId`
+- `followingId`
+- `createdAt`
+
+## `blocked-users.ts`
+
+- `blockerId`
+- `blockedId`
+- `createdAt`
+
+## `muted-users.ts`
+
+- `muterId`
+- `mutedId`
+- `createdAt`
+
+## `feed-items.ts`
+
+- `id`
+- `userId`
+- `postId`
+- `postAuthorId`
+- `createdAt`
+
+Indexes:
+
+- `userId`
+- `createdAt`
+
+---
+
+# Posts Schema
+
+## `posts.ts`
+
+Fields:
+
+- `id`
+- `authorId`
+- `content`
+- `visibility`
+  - `PUBLIC`
+  - `FOLLOWERS`
+  - `PRIVATE`
+- `likeCount`
+- `commentCount`
+- `shareCount`
+- `mediaCount`
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
+
+---
+
+## `comments.ts`
+
+Fields:
+
+- `id`
+- `postId`
+- `authorId`
+- `parentCommentId`
+- `content`
+- `likeCount`
+- `replyCount`
+- `createdAt`
+- `updatedAt`
+- `deletedAt`
+
+---
+
+## `likes.ts`
+
+Fields:
+
+- `id`
+- `userId`
+- `postId`
+- `commentId`
+- `targetType`
+  - `POST`
+  - `COMMENT`
+- `createdAt`
+
+---
+
+## `bookmarks.ts`
+
+Fields:
+
+- `id`
+- `userId`
+- `postId`
+- `createdAt`
+
+---
+
+## `hashtags.ts`
+
+Fields:
+
+- `id`
+- `name`
+- `postCount`
+- `createdAt`
+
+Also includes:
+
+- `postHashtags` join table
+
+---
+
+## `mentions.ts`
+
+Fields:
+
+- `id`
+- `postId`
+- `mentionedUserId`
+- `createdAt`
+
+---
+
+# Reserved Future Modules
+
+## Phase 3
+
+- `messaging/`
+- `notifications/`
+
+## Phase 4
+
+- `media/`
+
+## Phase 5
+
+- `moderation/`
+
+---
+
+# Relations
+
+All Drizzle relations are defined in:
+
+```txt
+src/database/schema/relations.ts
+```
+
+Exports located in:
 
 ```txt
 src/database/schema/index.ts
@@ -293,127 +336,94 @@ src/database/schema/index.ts
 
 ---
 
-# Authentication Module
+# Auth Module
 
-## Location
+Location:
 
 ```txt
 src/modules/auth/
 ```
 
-## Status
+## Endpoints
 
-Fully built and tested.
-
----
-
-# Auth Endpoints
-
-## Register
+### Register
 
 ```http
 POST /api/v1/auth/register
 ```
 
-Registers a user and returns:
-
-- user
-- accessToken
-- refreshToken
+- Argon2 password hashing
+- Returns:
+  - user
+  - accessToken
+  - refreshToken
 
 ---
 
-## Login
+### Login
 
 ```http
 POST /api/v1/auth/login
 ```
 
-Validates credentials and returns tokens.
+- Validates credentials
+- Returns tokens
 
 ---
 
-## Refresh Token
+### Refresh Token
 
 ```http
 POST /api/v1/auth/refresh
 ```
 
-Protected using:
-
-```ts
-JwtRefreshGuard
-```
-
-Rotates refresh token.
+- Rotates refresh token
+- Uses `JwtRefreshGuard`
 
 ---
 
-## Logout
+### Logout
 
 ```http
 POST /api/v1/auth/logout
 ```
 
-Protected using:
-
-```ts
-JwtAuthGuard
-```
-
-Revokes all user sessions.
+- Revokes all sessions
+- Uses `JwtAuthGuard`
 
 ---
 
-## Forgot Password
+### Forgot Password
 
 ```http
 POST /api/v1/auth/forgot-password
 ```
 
-Generates hashed reset token with 15 minute expiry.
+- Creates hashed reset token
+- 15 minute expiry
 
 ---
 
-## Reset Password
+### Reset Password
 
 ```http
 POST /api/v1/auth/reset-password
 ```
 
-Features:
-
-- validates token
-- hashes new password
-- revokes all sessions
+- Validates token
+- Hashes new password
+- Revokes sessions
 
 ---
 
-## Current User
+### Current User
 
 ```http
 GET /api/v1/auth/me
 ```
 
-Protected using:
-
-```ts
-JwtAuthGuard
-```
-
-Returns current user without `passwordHash`.
-
----
-
-# Authentication Details
-
-## Password Hashing
-
-Uses:
-
-```txt
-argon2
-```
+- Returns authenticated user
+- Never exposes `passwordHash`
 
 ---
 
@@ -425,14 +435,12 @@ Located in:
 src/modules/auth/guards/
 ```
 
-Includes:
-
 - `JwtAuthGuard`
 - `JwtRefreshGuard`
 
 ---
 
-## JWT Strategies
+## Strategies
 
 Located in:
 
@@ -440,83 +448,461 @@ Located in:
 src/modules/auth/strategies/
 ```
 
----
-
-## Repository Pattern
-
-`AuthRepository` handles all database queries.
-
-Services never query the database directly.
+- `jwt.strategy.ts`
+- `jwt-refresh.strategy.ts`
 
 ---
 
-# TypeScript Configuration
+# Users Module
 
-## tsconfig.json
-
-```json
-{
-  "module": "nodenext",
-  "moduleResolution": "nodenext",
-  "emitDecoratorMetadata": true,
-  "experimentalDecorators": true
-}
-```
-
-### Notes
-
-- No `baseUrl`
-- Imports are relative
-
----
-
-# Folder Structure
+Location:
 
 ```txt
-src/
-├── common/
-│   └── decorators/
-│       └── swagger.decorators.ts
-│
-├── config/
-│   ├── app.config.ts
-│   ├── auth.config.ts
-│   ├── database.config.ts
-│   ├── redis.config.ts
-│   ├── env.ts
-│   └── index.ts
-│
-├── database/
-│   ├── database.module.ts
-│   └── schema/
-│       ├── users.ts
-│       ├── sessions.ts
-│       ├── email-verifications.ts
-│       ├── password-resets.ts
-│       └── index.ts
-│
-├── infrastructure/
-│   └── cache/
-│       └── redis.module.ts
-│
-├── modules/
-│   └── auth/
-│       ├── controllers/
-│       ├── dto/
-│       ├── guards/
-│       ├── interfaces/
-│       ├── repositories/
-│       ├── services/
-│       └── strategies/
+src/modules/users/
+```
+
+## Endpoints
+
+### Profile
+
+```http
+GET /api/v1/users/me
+```
+
+Returns:
+
+- own profile
+- followerCount
+- followingCount
+
+---
+
+### Blocked Users
+
+```http
+GET /api/v1/users/me/blocked
+```
+
+---
+
+### Muted Users
+
+```http
+GET /api/v1/users/me/muted
+```
+
+---
+
+### Search Users
+
+```http
+GET /api/v1/users/search?q=
+```
+
+- Excludes blocked users
+
+---
+
+### Public Profile
+
+```http
+GET /api/v1/users/:username
+```
+
+Returns:
+
+- `isFollowing`
+- `followerCount`
+- `followingCount`
+
+---
+
+### Update Profile
+
+```http
+PATCH /api/v1/users/me
+```
+
+Updates:
+
+- `displayName`
+- `bio`
+- `isPrivate`
+
+---
+
+### Delete Account
+
+```http
+DELETE /api/v1/users/me
+```
+
+- Soft delete
+
+---
+
+### Follow User
+
+```http
+POST /api/v1/users/:username/follow
+```
+
+- Includes block checks
+
+---
+
+### Unfollow User
+
+```http
+DELETE /api/v1/users/:username/follow
+```
+
+---
+
+### Followers
+
+```http
+GET /api/v1/users/:username/followers
+```
+
+- Cursor pagination
+
+---
+
+### Following
+
+```http
+GET /api/v1/users/:username/following
+```
+
+- Cursor pagination
+
+---
+
+### Block User
+
+```http
+POST /api/v1/users/:username/block
+```
+
+- Auto unfollows both ways
+
+---
+
+### Unblock User
+
+```http
+DELETE /api/v1/users/:username/block
+```
+
+---
+
+### Mute User
+
+```http
+POST /api/v1/users/:username/mute
+```
+
+---
+
+### Unmute User
+
+```http
+DELETE /api/v1/users/:username/mute
+```
+
+---
+
+# Posts Module
+
+Location:
+
+```txt
+src/modules/posts/
+```
+
+## Endpoints
+
+### Create Post
+
+```http
+POST /api/v1/posts
+```
+
+Features:
+
+- Extract hashtags
+- Extract mentions
+- Trigger hybrid feed fan-out
+
+---
+
+### Get Post
+
+```http
+GET /api/v1/posts/:postId
+```
+
+Returns:
+
+- `isLiked`
+- `isBookmarked`
+
+---
+
+### User Posts
+
+```http
+GET /api/v1/users/:username/posts
+```
+
+- Cursor pagination
+
+---
+
+### Update Post
+
+```http
+PATCH /api/v1/posts/:postId
+```
+
+---
+
+### Delete Post
+
+```http
+DELETE /api/v1/posts/:postId
+```
+
+- Soft delete
+- Removes feed items
+
+---
+
+### Like Post
+
+```http
+POST /api/v1/posts/:postId/like
+```
+
+- Increments `likeCount`
+
+---
+
+### Unlike Post
+
+```http
+DELETE /api/v1/posts/:postId/like
+```
+
+- Decrements `likeCount`
+
+---
+
+### Post Likes
+
+```http
+GET /api/v1/posts/:postId/likes
+```
+
+- Cursor pagination
+
+---
+
+### Create Comment
+
+```http
+POST /api/v1/posts/:postId/comments
+```
+
+Supports:
+
+- comments
+- replies
+
+Optional:
+
+- `parentCommentId`
+
+---
+
+### Get Comments
+
+```http
+GET /api/v1/posts/:postId/comments
+```
+
+- Paginated top-level comments
+
+---
+
+### Comment Replies
+
+```http
+GET /api/v1/comments/:commentId/replies
+```
+
+- Cursor pagination
+
+---
+
+### Delete Comment
+
+```http
+DELETE /api/v1/comments/:commentId
+```
+
+- Soft delete
+
+---
+
+### Like Comment
+
+```http
+POST /api/v1/comments/:commentId/like
+```
+
+---
+
+### Unlike Comment
+
+```http
+DELETE /api/v1/comments/:commentId/like
+```
+
+---
+
+### Bookmark Post
+
+```http
+POST /api/v1/posts/:postId/bookmark
+```
+
+---
+
+### Remove Bookmark
+
+```http
+DELETE /api/v1/posts/:postId/bookmark
+```
+
+---
+
+### User Bookmarks
+
+```http
+GET /api/v1/me/bookmarks
+```
+
+- Cursor pagination
+
+---
+
+### Hashtag Posts
+
+```http
+GET /api/v1/hashtags/:hashtagName/posts
+```
+
+---
+
+# Feed Module
+
+Location:
+
+```txt
+src/modules/feed/
+```
+
+## Endpoints
+
+### Home Feed
+
+```http
+GET /api/v1/feed
+```
+
+Features:
+
+- Hybrid feed
+- Fan-out on write
+- Read-time merge for celebrities
+- Redis cache: 60s
+- Fallback to trending
+
+Celebrity threshold:
+
+```txt
+1000 followers
+```
+
+---
+
+### Trending Feed
+
+```http
+GET /api/v1/feed/trending
+```
+
+Trending score formula:
+
+```txt
+(likeCount × 3) + (commentCount × 2) + shareCount
+```
+
+Redis cache:
+
+```txt
+300 seconds
+```
+
+---
+
+## Feed Features
+
+- Celebrity threshold: `1000`
+- Fan-out triggered on post creation
+- Fan-out removed on post deletion
+- Feed cache invalidated on followed user post creation
+- Fully tested
+
+---
+
+## FeedService Exports
+
+- `fanOutPost`
+- `removeFanOutPost`
+- `invalidateUserFeed`
+
+---
+
+# Module Folder Structure
+
+```txt
+src/modules/{module}/
+├── controllers/
+├── services/
+├── repositories/
+├── dto/
+├── guards/
+├── strategies/
+├── interfaces/
+└── {module}.module.ts
 ```
 
 ---
 
 # Architecture Conventions
 
-## API Versioning
+## Imports
 
-All endpoints must be prefixed with:
+- Always use `.ts` extensions
+
+---
+
+## API Prefix
+
+- All endpoints prefixed with:
 
 ```txt
 /api/v1/
@@ -524,71 +910,75 @@ All endpoints must be prefixed with:
 
 ---
 
-# Repository Rules
+## Repository Pattern
 
-- Repositories handle all Drizzle database queries
-- Services must never directly query the database
-
----
-
-# Service Rules
-
-Services handle only business logic.
+- Repositories handle all Drizzle DB queries
+- Services handle business logic only
+- Never query DB directly inside services
 
 ---
 
-# DTO Rules
+## DTO Rules
 
-DTOs must always use:
-
-- `class-validator`
-- `@ApiProperty`
+- Use `class-validator`
+- Use `@ApiProperty`
 
 ---
 
-# Soft Deletes
+## Soft Deletes
 
-Soft deletes are implemented using:
-
-```txt
-deletedAt
-```
-
-timestamps.
+- Use `deletedAt` timestamp
 
 ---
 
-# Primary Keys
+## IDs
 
-All primary keys use:
-
-```txt
-UUID
-```
+- UUID primary keys only
 
 ---
 
-# Security Rules
+## Security
 
 - Never expose `passwordHash`
-- JWT secrets must come from environment variables
-- Sensitive data must never be committed
 
 ---
 
-# Global Modules
+## Global Modules
 
-`DatabaseModule` and `CacheModule` are global modules.
+Never re-import:
 
-Feature modules should NOT re-import them.
+- `DatabaseModule`
+- `CacheModule`
+
+because they are already `@Global()`
 
 ---
 
-# Swagger Convention Rules
+## Pagination
+
+- Always use cursor-based pagination
+- Never use OFFSET pagination
+
+---
+
+## Counter Updates
+
+Use:
+
+```ts
+sql``
+```
+
+from `drizzle-orm`
+
+for atomic increment/decrement queries.
+
+---
+
+## Idempotent Inserts
 
 Always use:
 
-- `ApiAuthEndpoint`
-- `ApiPublicEndpoint`
-
-Never use raw Swagger decorators directly inside controllers.
+```ts
+onConflictDoNothing()
+```

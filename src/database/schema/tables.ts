@@ -14,3 +14,5 @@ export * from './posts/likes';
 export * from './posts/bookmarks';
 export * from './posts/hashtags';
 export * from './posts/mentions';
+
+export * from './notifications/notifications';

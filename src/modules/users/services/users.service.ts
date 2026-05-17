@@ -9,6 +9,7 @@ import { UsersRepository } from '../repositories/users.repository';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SearchUsersDto } from '../dto/search-users.dto';
 import { FeedService } from '../../feed/services/feed.service';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 
 @Injectable()
 export class UsersService {
@@ -16,6 +17,7 @@ export class UsersService {
     private usersRepository: UsersRepository,
     @Inject(forwardRef(() => FeedService))
     private feedService: FeedService,
+    private notificationsService: NotificationsService,
   ) { }
 
   // ── Profile ────────────────────────────────────────────
@@ -105,6 +107,7 @@ export class UsersService {
 
     await this.usersRepository.follow(currentUserId, target.id);
     await this.feedService.backfillFeedOnFollow(currentUserId, target.id);
+    await this.notificationsService.notifyFollow(currentUserId, target.id);
     return { message: `Following ${username}` };
   }
 

@@ -11,6 +11,7 @@ import { mutedUsers } from './social/muted-users';
 import { sessions } from './auth/sessions';
 import { users } from './auth/users';
 import { feedItems } from './social/feed-items';
+import { notifications } from './notifications/notifications';
 
 export const usersRelations = relations(users, ({ many }) => ({
   followers: many(follows, { relationName: 'following' }),
@@ -22,6 +23,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   likes: many(likes),
   bookmarks: many(bookmarks),
   mentions: many(mentions),
+  receivedNotifications: many(notifications, { relationName: 'recipient' }),
+  sentNotifications: many(notifications, { relationName: 'actor' }),
 }));
 
 export const followsRelations = relations(follows, ({ one }) => ({
@@ -166,5 +169,19 @@ export const feedItemsRelations = relations(feedItems, ({ one }) => ({
     fields: [feedItems.postAuthorId],
     references: [users.id],
     relationName: 'feedPostAuthor',
+  }),
+}));
+
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  recipient: one(users, {
+    fields: [notifications.recipientId],
+    references: [users.id],
+    relationName: 'recipient',
+  }),
+  actor: one(users, {
+    fields: [notifications.actorId],
+    references: [users.id],
+    relationName: 'actor',
   }),
 }));
