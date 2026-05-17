@@ -33,6 +33,24 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build: .
+    container_name: socialhub_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '4000:4000'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/socialhub_dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
 volumes:
   socialhub_postgres_data:
   socialhub_redis_data:
