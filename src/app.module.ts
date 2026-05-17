@@ -5,6 +5,8 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
 import { CacheModule } from './infrastructure/cache/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { PostsModule } from './modules/posts/posts.module';
 import { appConfig, authConfig, databaseConfig, redisConfig } from './config';
 import { validateEnv } from './config/env';
 
@@ -19,6 +21,8 @@ import { validateEnv } from './config/env';
     DatabaseModule,
     CacheModule,
     AuthModule,
+    UsersModule,
+    PostsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

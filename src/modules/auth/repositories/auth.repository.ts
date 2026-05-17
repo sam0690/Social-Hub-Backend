@@ -2,16 +2,19 @@ import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../../database/database.module';
-import { users, type NewUser } from '../../../database/schema/users';
-import { sessions, type NewSession } from '../../../database/schema/sessions';
+import { users, type NewUser } from '../../../database/schema/auth/users';
+import {
+  sessions,
+  type NewSession,
+} from '../../../database/schema/auth/sessions';
 import {
   emailVerifications,
   type NewEmailVerification,
-} from '../../../database/schema/email-verifications';
+} from '../../../database/schema/auth/email-verifications';
 import {
   passwordResets,
   type NewPasswordReset,
-} from '../../../database/schema/password-resets';
+} from '../../../database/schema/auth/password-resets';
 
 type AuthSchema = {
   users: typeof users;

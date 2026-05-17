@@ -1,4 +1,3 @@
-export * from './users';
-export * from './sessions';
-export * from './email-verifications';
-export * from './password-resets';
+export * from './tables.js';
+
+export * from './relations.js';
