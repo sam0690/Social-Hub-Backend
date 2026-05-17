@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PostsRepository } from '../repositories/posts.repository';
 import { UsersRepository } from '../../users/repositories/users.repository';
+import { FeedService } from '../../feed/services/feed.service';
 import { CreatePostDto } from '../dto/create-post.dto';
 import { UpdatePostDto } from '../dto/update-post.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
@@ -15,7 +16,8 @@ export class PostsService {
   constructor(
     private postsRepository: PostsRepository,
     private usersRepository: UsersRepository,
-  ) {}
+    private feedService: FeedService,
+  ) { }
 
   // ── Helpers ────────────────────────────────────────────
   private extractHashtags(content: string): string[] {
@@ -67,6 +69,9 @@ export class PostsService {
         await this.postsRepository.createMention(post.id, mentionedUser.id);
       }
     }
+
+    // fan-out post to followers' inboxes
+    await this.feedService.fanOutPost(post.id, userId);
 
     return post;
   }
@@ -150,6 +155,10 @@ export class PostsService {
     if (post.authorId !== userId) throw new ForbiddenException('Not your post');
 
     await this.postsRepository.deletePost(postId);
+
+    // remove fan-out items and invalidate followers' feed caches
+    await this.feedService.removeFanOutPost(postId, userId);
+
     return { message: 'Post deleted successfully' };
   }
 

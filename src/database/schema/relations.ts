@@ -10,6 +10,7 @@ import { follows } from './social/follows';
 import { mutedUsers } from './social/muted-users';
 import { sessions } from './auth/sessions';
 import { users } from './auth/users';
+import { feedItems } from './social/feed-items';
 
 export const usersRelations = relations(users, ({ many }) => ({
   followers: many(follows, { relationName: 'following' }),
@@ -148,5 +149,22 @@ export const postHashtagsRelations = relations(postHashtags, ({ one }) => ({
   hashtag: one(hashtags, {
     fields: [postHashtags.hashtagId],
     references: [hashtags.id],
+  }),
+}));
+
+export const feedItemsRelations = relations(feedItems, ({ one }) => ({
+  user: one(users, {
+    fields: [feedItems.userId],
+    references: [users.id],
+  }),
+  post: one(posts, {
+    fields: [feedItems.postId],
+    references: [posts.id],
+    relationName: 'feedPost',
+  }),
+  postAuthor: one(users, {
+    fields: [feedItems.postAuthorId],
+    references: [users.id],
+    relationName: 'feedPostAuthor',
   }),
 }));

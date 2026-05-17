@@ -6,6 +6,7 @@ export * from './auth/password-resets';
 export * from './social/follows';
 export * from './social/blocked-users';
 export * from './social/muted-users';
+export * from './social/feed-items';
 
 export * from './posts/posts';
 export * from './posts/comments';
