@@ -31,6 +31,13 @@ export interface FeedPostWithAuthor {
   author: FeedAuthor;
 }
 
+/** Minimal post row returned by getUserPostIds for backfill. */
+export interface PostIdRow {
+  id: string;
+  createdAt: Date;
+  authorId: string;
+}
+
 /** Feed inbox item with nested post — returned by getFeedInboxPosts. */
 export interface FeedInboxItem {
   id: string;
@@ -126,6 +133,76 @@ export class FeedRepository {
     await this.db
       .delete(schema.feedItems)
       .where(eq(schema.feedItems.postId, postId));
+  }
+
+  /**
+   * Returns the last `limit` public, non-deleted posts by `authorId`.
+   * Used to backfill a new follower's inbox.
+   */
+  async getUserPostIds(authorId: string, limit: number): Promise<PostIdRow[]> {
+    const results = await this.db.query.posts.findMany({
+      where: and(
+        eq(schema.posts.authorId, authorId),
+        isNull(schema.posts.deletedAt),
+        eq(schema.posts.visibility, 'PUBLIC'),
+      ),
+      orderBy: desc(schema.posts.createdAt),
+      limit,
+      columns: { id: true, createdAt: true, authorId: true },
+    });
+    return results;
+  }
+
+  /**
+   * Deletes all feed_items belonging to `userId` that were posted by `authorId`.
+   * Called when a user unfollows someone.
+   */
+  async removeFeedItemsForAuthor(userId: string, authorId: string): Promise<void> {
+    await this.db
+      .delete(schema.feedItems)
+      .where(
+        and(
+          eq(schema.feedItems.userId, userId),
+          eq(schema.feedItems.postAuthorId, authorId),
+        ),
+      );
+  }
+
+  /**
+   * Queries posts directly from people the user follows (chronological order).
+   * Used for the `/following` feed tab — always fresh, no cache.
+   */
+  async getFollowingPostsChronological(
+    followingIds: string[],
+    limit: number,
+    cursor?: string,
+  ): Promise<FeedPostWithAuthor[]> {
+    if (followingIds.length === 0) return [];
+
+    const results = await this.db.query.posts.findMany({
+      where: and(
+        inArray(schema.posts.authorId, followingIds),
+        isNull(schema.posts.deletedAt),
+        eq(schema.posts.visibility, 'PUBLIC'),
+        cursor
+          ? lt(schema.posts.createdAt, this.decodeCursor(cursor))
+          : undefined,
+      ),
+      orderBy: desc(schema.posts.createdAt),
+      limit,
+      with: {
+        author: {
+          columns: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+            isVerified: true,
+          },
+        },
+      },
+    });
+    return results;
   }
 
   // ── Feed inbox (pre-built items) ───────────────────────

@@ -2,14 +2,21 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { UsersRepository } from '../repositories/users.repository';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { SearchUsersDto } from '../dto/search-users.dto';
+import { FeedService } from '../../feed/services/feed.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private usersRepository: UsersRepository) {}
+  constructor(
+    private usersRepository: UsersRepository,
+    @Inject(forwardRef(() => FeedService))
+    private feedService: FeedService,
+  ) { }
 
   // ── Profile ────────────────────────────────────────────
   async getMyProfile(userId: string) {
@@ -97,6 +104,7 @@ export class UsersService {
     if (isBlocked) throw new NotFoundException('User not found');
 
     await this.usersRepository.follow(currentUserId, target.id);
+    await this.feedService.backfillFeedOnFollow(currentUserId, target.id);
     return { message: `Following ${username}` };
   }
 
@@ -108,6 +116,7 @@ export class UsersService {
       throw new BadRequestException('You cannot unfollow yourself');
 
     await this.usersRepository.unfollow(currentUserId, target.id);
+    await this.feedService.cleanFeedOnUnfollow(currentUserId, target.id);
     return { message: `Unfollowed ${username}` };
   }
 

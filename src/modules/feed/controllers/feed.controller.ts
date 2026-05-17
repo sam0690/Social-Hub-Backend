@@ -24,6 +24,14 @@ export class FeedController {
         return this.feedService.getHomeFeed(req.user.id, dto);
     }
 
+    @Get('following')
+    @ApiAuthEndpoint('Get chronological following feed', {
+        ok: 'Paginated posts from followed users in chronological order',
+    })
+    getFollowingFeed(@Query() dto: GetFeedDto, @Req() req: AuthRequest) {
+        return this.feedService.getFollowingFeed(req.user.id, dto);
+    }
+
     @Get('trending')
     @ApiAuthEndpoint('Get trending feed', {
         ok: 'Paginated trending posts by engagement score',

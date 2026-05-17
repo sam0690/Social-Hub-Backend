@@ -9,7 +9,7 @@ export class PostsRepository {
   constructor(
     @Inject(DRIZZLE)
     private db: NodePgDatabase<typeof schema>,
-  ) {}
+  ) { }
 
   // ── Posts ──────────────────────────────────────────────
   async createPost(data: schema.NewPost) {
@@ -390,10 +390,10 @@ export class PostsRepository {
 
   // ── Helpers ────────────────────────────────────────────
   private getCursorDate(cursor: string): Date {
-    return new Date(Buffer.from(cursor, 'base64').toString('utf-8'));
+    return new Date(Buffer.from(cursor, 'base64url').toString('utf-8'));
   }
 
   encodeCursor(date: Date): string {
-    return Buffer.from(date.toISOString()).toString('base64');
+    return Buffer.from(date.toISOString()).toString('base64url');
   }
 }

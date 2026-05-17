@@ -150,6 +150,70 @@ export class FeedService {
     await Promise.all(followerIds.map((id) => this.invalidateUserFeed(id)));
   }
 
+  // ── Follow / unfollow feed maintenance ─────────────────
+  /**
+   * Called when user A follows user B.
+   * Backfills the last 20 of B's posts into A's inbox (unless B is a celebrity).
+   */
+  async backfillFeedOnFollow(
+    followerId: string,
+    followingId: string,
+  ): Promise<void> {
+    const isCelebrity = await this.feedRepository.isCelebrity(followingId);
+    if (isCelebrity) {
+      // Celebrity posts are fetched at read time — no inbox backfill needed
+      return;
+    }
+
+    const posts = await this.feedRepository.getUserPostIds(followingId, 20);
+    for (const post of posts) {
+      await this.feedRepository.fanOutPostToFollowers(post.id, followingId, [
+        followerId,
+      ]);
+    }
+
+    await this.invalidateUserFeed(followerId);
+  }
+
+  /**
+   * Called when user A unfollows user B.
+   * Removes all of B's posts from A's feed inbox and invalidates cache.
+   */
+  async cleanFeedOnUnfollow(
+    followerId: string,
+    followingId: string,
+  ): Promise<void> {
+    await this.feedRepository.removeFeedItemsForAuthor(followerId, followingId);
+    await this.invalidateUserFeed(followerId);
+  }
+
+  // ── Chronological following feed ───────────────────────
+  /** Returns a fresh, cursor-paginated chronological feed of followed users. */
+  async getFollowingFeed(
+    userId: string,
+    dto: GetFeedDto,
+  ): Promise<PaginatedFeedResponse> {
+    const limit = dto.limit ?? 10;
+
+    const followingIds = await this.feedRepository.getFollowingIds(userId);
+    if (followingIds.length === 0) {
+      return { data: [], nextCursor: null, hasMore: false };
+    }
+
+    const posts = await this.feedRepository.getFollowingPostsChronological(
+      followingIds,
+      limit + 1,
+      dto.cursor,
+    );
+
+    const enriched = await this.enrichWithStatuses(posts, userId);
+    return this.buildPaginatedResponse(
+      enriched,
+      limit,
+      (post) => post.createdAt,
+    );
+  }
+
   // ── Home feed ──────────────────────────────────────────
   async getHomeFeed(
     userId: string,
