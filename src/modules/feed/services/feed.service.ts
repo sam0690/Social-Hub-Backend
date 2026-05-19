@@ -29,7 +29,7 @@ export class FeedService {
   constructor(
     private feedRepository: FeedRepository,
     @InjectRedis() private redis: Redis,
-  ) { }
+  ) {}
 
   // ── Helpers ────────────────────────────────────────────
   private buildPaginatedResponse<T>(
@@ -41,8 +41,8 @@ export class FeedService {
     const pageItems = hasMore ? items.slice(0, limit) : items;
     const nextCursor = hasMore
       ? this.feedRepository.encodeCursor(
-        getCursorValue(pageItems[pageItems.length - 1]),
-      )
+          getCursorValue(pageItems[pageItems.length - 1]),
+        )
       : null;
     return { data: pageItems, nextCursor, hasMore };
   }
