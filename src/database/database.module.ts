@@ -14,7 +14,7 @@ export const DRIZZLE = Symbol('DRIZZLE');
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
         const pool = new Pool({
-          connectionString: config.getOrThrow<string>('DATABASE_URL'),
+          connectionString: config.getOrThrow<string>('database.url'),
         });
         return drizzle(pool, { schema });
       },

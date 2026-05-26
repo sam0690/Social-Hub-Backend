@@ -1,18 +1,31 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisModule } from '@nestjs-modules/ioredis';
+import { Redis as UpstashRedis } from '@upstash/redis';
+import Redis from 'ioredis';
+
+export const UPSTASH_REDIS = Symbol('UPSTASH_REDIS');
 
 @Global()
 @Module({
-  imports: [
-    RedisModule.forRootAsync({
-      useFactory: (config: ConfigService) => ({
-        type: 'single',
-        url: `redis://${config.get<string>('REDIS_HOST') ?? 'localhost'}:${config.get<string>('REDIS_PORT') ?? '6379'}`,
-      }),
+  providers: [
+    {
+      provide: UPSTASH_REDIS,
       inject: [ConfigService],
-    }),
+      useFactory: (config: ConfigService) => {
+        const url = config.get<string>('redis.url');
+        const token = config.get<string>('redis.token');
+
+        if (url && token) {
+          return new UpstashRedis({ url, token });
+        }
+
+        return new Redis({
+          host: config.get<string>('redis.host'),
+          port: config.get<number>('redis.port'),
+        });
+      },
+    },
   ],
-  exports: [RedisModule],
+  exports: [UPSTASH_REDIS],
 })
 export class CacheModule {}

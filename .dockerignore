@@ -5,6 +5,7 @@ coverage
 .gitignore
 .env
 .env.*
+!.env.example
 docker-compose.yml
 README.md
 test

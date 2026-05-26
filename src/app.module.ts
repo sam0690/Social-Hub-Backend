@@ -11,6 +11,7 @@ import { FeedModule } from './modules/feed/feed.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { appConfig, authConfig, databaseConfig, redisConfig } from './config';
 import { validateEnv } from './config/env';
+import { ChatModule } from './modules/chat/chat.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { validateEnv } from './config/env';
     PostsModule,
     FeedModule,
     NotificationsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

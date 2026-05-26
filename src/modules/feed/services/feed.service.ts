@@ -1,12 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRedis } from '@nestjs-modules/ioredis';
-import Redis from 'ioredis';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { FeedRepository } from '../repositories/feed.repository';
 import {
   FeedInboxItem,
   FeedPostWithAuthor,
 } from '../repositories/feed.repository';
 import { GetFeedDto } from '../dto/get-feed.dto';
+import { UPSTASH_REDIS } from '../../../infrastructure/cache/redis.module';
 
 type FeedSourceItem = FeedInboxItem | FeedPostWithAuthor;
 type FeedResponsePost = FeedPostWithAuthor & {
@@ -23,13 +22,83 @@ export interface PaginatedFeedResponse {
 
 @Injectable()
 export class FeedService {
+  private readonly logger = new Logger(FeedService.name);
   private readonly FEED_CACHE_TTL = 60;
   private readonly TRENDING_CACHE_TTL = 300;
 
   constructor(
     private feedRepository: FeedRepository,
-    @InjectRedis() private redis: Redis,
+    @Inject(UPSTASH_REDIS) private redis: any,
   ) {}
+
+  private describeRedisError(error: unknown): string {
+    if (!(error instanceof Error)) {
+      return String(error);
+    }
+
+    const networkError = error as Error & {
+      code?: string;
+      errno?: number;
+      syscall?: string;
+      address?: string;
+      port?: number;
+    };
+
+    const details = [
+      error.name,
+      error.message,
+      networkError.code,
+      networkError.errno,
+      networkError.syscall,
+      networkError.address,
+      networkError.port,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== '')
+      .map(String);
+
+    if (details.length > 0) {
+      return details.join(' | ');
+    }
+
+    return error.stack ?? error.toString();
+  }
+
+  private async readCache(key: string): Promise<string | null> {
+    try {
+      return await this.redis.get(key) as string;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to read cache for ${key}: ${this.describeRedisError(error)}`,
+      );
+      return null;
+    }
+  }
+
+  private async writeCache(
+    key: string,
+    ttlSeconds: number,
+    value: string,
+  ): Promise<void> {
+    try {
+      await this.redis.setex(key, ttlSeconds, value);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to write cache for ${key}: ${this.describeRedisError(error)}`,
+      );
+    }
+  }
+
+  private async deleteCacheKeys(keys: string[]): Promise<void> {
+    if (keys.length === 0) return;
+
+    try {
+      await this.redis.del(...keys);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to invalidate feed cache: ${this.describeRedisError(error)}`,
+      );
+    }
+  }
 
   // ── Helpers ────────────────────────────────────────────
   private buildPaginatedResponse<T>(
@@ -224,7 +293,7 @@ export class FeedService {
 
     // serve from cache for first page only
     if (!dto.cursor) {
-      const cached = await this.redis.get(cacheKey);
+      const cached = await this.readCache(cacheKey);
       if (cached) {
         return JSON.parse(cached) as PaginatedFeedResponse;
       }
@@ -266,11 +335,7 @@ export class FeedService {
 
     // cache first page
     if (!dto.cursor) {
-      await this.redis.setex(
-        cacheKey,
-        this.FEED_CACHE_TTL,
-        JSON.stringify(response),
-      );
+      await this.writeCache(cacheKey, this.FEED_CACHE_TTL, JSON.stringify(response));
     }
 
     return response;
@@ -285,7 +350,7 @@ export class FeedService {
     const cacheKey = `feed:trending:${limit}`;
 
     if (!dto.cursor) {
-      const cached = await this.redis.get(cacheKey);
+      const cached = await this.readCache(cacheKey);
       if (cached) {
         const parsed = JSON.parse(cached) as PaginatedFeedResponse;
         const enriched = await this.enrichWithStatuses(parsed.data, userId);
@@ -304,7 +369,7 @@ export class FeedService {
     );
 
     if (!dto.cursor) {
-      await this.redis.setex(
+      await this.writeCache(
         cacheKey,
         this.TRENDING_CACHE_TTL,
         JSON.stringify(response),
@@ -321,8 +386,6 @@ export class FeedService {
   // ── Cache invalidation ─────────────────────────────────
   async invalidateUserFeed(userId: string): Promise<void> {
     const cacheKeys = await this.redis.keys(`feed:home:${userId}:*`);
-    if (cacheKeys.length > 0) {
-      await this.redis.del(...cacheKeys);
-    }
+    await this.deleteCacheKeys(cacheKeys);
   }
 }
